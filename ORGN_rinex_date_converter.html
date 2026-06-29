@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pacific Time to RINEX Format Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            display: none;
+        }
+        .result h2 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .result-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+        }
+        .result-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .result-value {
+            font-size: 18px;
+            color: #1976d2;
+            font-family: monospace;
+        }
+        .info {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RINEX Date Converter</h1>
+        <div class="subtitle">Convert Pacific Time to RINEX Julian Date Format</div>
+        
+        <label for="dateInput">Date (Pacific Time):</label>
+        <input type="date" id="dateInput" required>
+        
+        <label for="timeInput">Hour (Pacific Time):</label>
+        <input type="number" id="timeInput" min="0" max="23" placeholder="0-23" required>
+        
+        <button onclick="convert()">Convert to RINEX Format</button>
+        
+        <div id="result" class="result">
+            <h2>RINEX Format</h2>
+            <div class="result-item">
+                <div class="result-label">Day of Year:</div>
+                <div class="result-value" id="dayOfYear"></div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Hour Code:</div>
+                <div class="result-value" id="hourCode"></div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Combined Format:</div>
+                <div class="result-value" id="combined"></div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">UTC Date/Time:</div>
+                <div class="result-value" id="utcDateTime"></div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Time Zone:</div>
+                <div class="result-value" id="timeZone"></div>
+            </div>
+        </div>
+        
+        <div class="info">
+            <strong>About RINEX Format:</strong><br>
+            • Day of Year: 001-365 (366 in leap years)<br>
+            • Hour Codes: A=00:00-01:00 UTC, B=01:00-02:00 UTC, ... X=23:00-24:00 UTC<br>
+            • This tool automatically handles PST/PDT conversion
+        </div>
+    </div>
+
+    <script>
+        // Set current date and time as default
+        window.onload = function() {
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            const hour = now.getHours();
+            document.getElementById('dateInput').value = dateStr;
+            document.getElementById('timeInput').value = hour;
+        };
+
+        function convert() {
+            const dateInput = document.getElementById('dateInput').value;
+            const hourInput = document.getElementById('timeInput').value;
+            
+            if (!dateInput || hourInput === '') {
+                alert('Please enter both date and hour');
+                return;
+            }
+            
+            const hour = parseInt(hourInput);
+            if (hour < 0 || hour > 23) {
+                alert('Hour must be between 0 and 23');
+                return;
+            }
+            
+            // Create a date object in Pacific Time
+            const pacificDateTimeStr = `${dateInput}T${hour.toString().padStart(2, '0')}:00:00`;
+            const pacificDate = new Date(pacificDateTimeStr);
+            
+            // Determine if we're in PST or PDT
+            const timeZoneOffset = pacificDate.getTimezoneOffset();
+            let timeZoneName;
+            if (timeZoneOffset === 480) {
+                timeZoneName = 'PST (UTC-8)';
+            } else if (timeZoneOffset === 420) {
+                timeZoneName = 'PDT (UTC-7)';
+            } else {
+                timeZoneName = `UTC${timeZoneOffset > 0 ? '-' : '+'}${Math.abs(timeZoneOffset / 60)}`;
+            }
+            
+            // Convert to UTC
+            const utcDate = new Date(pacificDate.toISOString());
+            
+            // Calculate day of year
+            const startOfYear = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+            const dayOfYear = Math.floor((utcDate - startOfYear) / (24 * 60 * 60 * 1000)) + 1;
+            const dayOfYearStr = dayOfYear.toString().padStart(3, '0');
+            
+            // Calculate hour code (A-X for hours 0-23)
+            const utcHour = utcDate.getUTCHours();
+            const hourCode = String.fromCharCode(65 + utcHour); // 65 is 'A'
+            
+            // Display results
+            document.getElementById('dayOfYear').textContent = dayOfYearStr;
+            document.getElementById('hourCode').textContent = hourCode + ` (${utcHour.toString().padStart(2, '0')}:00-${((utcHour + 1) % 24).toString().padStart(2, '0')}:00 UTC)`;
+            document.getElementById('combined').textContent = dayOfYearStr + hourCode;
+            document.getElementById('utcDateTime').textContent = utcDate.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            document.getElementById('timeZone').textContent = timeZoneName;
+            document.getElementById('result').style.display = 'block';
+        }
+        
+        // Allow Enter key to trigger conversion
+        document.getElementById('timeInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                convert();
+            }
+        });
+    </script>
+</body>
+</html>
